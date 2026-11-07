@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────────────── MONIQ · Design tokens ─────────────────────────
+   Los colores se definen como canales RGB para soportar opacidad en Tailwind. */
+:root {
+  --canvas: 244 246 250;
+  --surface: 255 255 255;
+  --surface-2: 248 249 252;
+  --surface-3: 238 241 247;
+  --line: 226 231 240;
+  --line-strong: 205 213 227;
+  --ink: 10 27 61;
+  --ink-2: 71 85 115;
+  --ink-3: 122 134 160;
+  --navy: 10 27 61;
+  --brand: 47 107 255;
+  --brand-soft: 232 239 255;
+  --brand-ink: 29 78 216;
+  --income: 4 150 105;
+  --income-soft: 224 247 237;
+  --expense: 232 78 68;
+  --expense-soft: 254 236 233;
+  --warn: 196 112 8;
+  --warn-soft: 254 243 219;
+  --shadow: 10 27 61;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: 6 12 27;
+  --surface: 12 22 44;
+  --surface-2: 16 28 54;
+  --surface-3: 23 37 70;
+  --line: 30 44 78;
+  --line-strong: 46 64 108;
+  --ink: 232 238 250;
+  --ink-2: 160 174 203;
+  --ink-3: 108 123 156;
+  --navy: 4 10 24;
+  --brand: 84 138 255;
+  --brand-soft: 22 40 88;
+  --brand-ink: 150 186 255;
+  --income: 38 214 163;
+  --income-soft: 10 48 46;
+  --expense: 255 117 104;
+  --expense-soft: 66 26 32;
+  --warn: 251 178 66;
+  --warn-soft: 58 44 14;
+  --shadow: 0 0 0;
+  color-scheme: dark;
+}
+
+@layer base {
+  * { @apply border-line; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+  ::selection { background: rgb(var(--brand) / 0.25); }
+  :focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 8px; }
+  input, select, textarea, button { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--line-strong)); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-3)); background-clip: content-box; border: 3px solid transparent; }
+}
+
+@layer components {
+  .panel { @apply rounded-2xl border border-line bg-surface shadow-soft; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3; }
+  .skeleton { @apply relative overflow-hidden rounded-lg bg-surface-3; }
+  .skeleton::after {
+    content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(var(--surface) / 0.7), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+  .scroll-x { overflow-x: auto; scrollbar-width: thin; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+.recharts-wrapper *:focus { outline: none; }
+.recharts-surface:focus { outline: none; }
+
+/* ───────────── Modales (Radix Dialog) ───────────── */
+.modal-overlay { position: fixed; inset: 0; z-index: 60; background: rgb(var(--navy) / 0.55); backdrop-filter: blur(6px); }
+.modal-overlay[data-state='open'] { animation: overlay-in .2s ease-out both; }
+.modal-overlay[data-state='closed'] { animation: overlay-out .16s ease-in both; }
+.modal-content {
+  position: fixed; z-index: 61; display: flex; flex-direction: column; background: rgb(var(--surface));
+  border: 1px solid rgb(var(--line)); box-shadow: 0 30px 80px -20px rgb(0 0 0 / .45);
+  left: 0; right: 0; bottom: 0; max-height: 92dvh; border-radius: 24px 24px 0 0; width: 100%;
+}
+.modal-content[data-state='open'] { animation: sheet-in .28s cubic-bezier(.2,.8,.2,1) both; }
+.modal-content[data-state='closed'] { animation: sheet-out .18s ease-in both; }
+@media (min-width: 640px) {
+  .modal-content {
+    left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%);
+    max-height: min(88dvh, 860px); border-radius: 24px;
+  }
+  .modal-content[data-state='open'] { animation: dialog-in .24s cubic-bezier(.2,.8,.2,1) both; }
+  .modal-content[data-state='closed'] { animation: dialog-out .16s ease-in both; }
+}
+@keyframes overlay-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes overlay-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes sheet-in { from { transform: translateY(40px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes sheet-out { from { transform: translateY(0); opacity: 1 } to { transform: translateY(40px); opacity: 0 } }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -48%) scale(.96) } to { opacity: 1; transform: translate(-50%, -50%) scale(1) } }
+@keyframes dialog-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1) } to { opacity: 0; transform: translate(-50%, -48%) scale(.97) } }
