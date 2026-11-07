@@ -5,7 +5,8 @@ import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { AmountInput } from '@/components/common/AmountInput'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { Field, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Segmented } from '@/components/ui/Segmented'
 import { ServiceError } from '@/services'
@@ -109,7 +110,9 @@ function MovementForm({ onBusy }: { onBusy: (busy: boolean) => void }) {
 
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
         <Field label="Fecha" htmlFor="mv-date" error={errors.date?.message}>
-          <Input id="mv-date" type="date" max={todayISO()} invalid={!!errors.date} {...register('date')} />
+          <Controller control={control} name="date" render={({ field }) => (
+            <DatePicker id="mv-date" label="Fecha" value={field.value} onChange={field.onChange} max={todayISO()} invalid={!!errors.date} />
+          )} />
         </Field>
         <Field label="Nota" htmlFor="mv-note" optional error={errors.note?.message}>
           <Textarea id="mv-note" rows={1} placeholder="Ej. Pago de marzo" invalid={!!errors.note} {...register('note')} />

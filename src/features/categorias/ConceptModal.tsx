@@ -4,7 +4,8 @@ import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { AmountInput } from '@/components/common/AmountInput'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { Field, Input } from '@/components/ui/Field'
+import { CategorySelect } from '@/components/common/CategorySelect'
 import { Modal } from '@/components/ui/Modal'
 import { Switch } from '@/components/ui/Switch'
 import { ServiceError } from '@/services'
@@ -61,9 +62,9 @@ function ConceptForm({ concept, categoryId, type, onClose, onBusy }: Omit<Props,
         <Input id="con-name" autoFocus placeholder={type === 'INGRESO' ? 'Ej. Bono trimestral' : 'Ej. Alquiler'} invalid={!!errors.name} {...register('name')} />
       </Field>
       <Field label="Categoría" htmlFor="con-cat" error={errors.categoryId?.message}>
-        <Select id="con-cat" invalid={!!errors.categoryId} {...register('categoryId')}>
-          {options.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
+        <Controller control={control} name="categoryId" render={({ field }) => (
+          <CategorySelect id="con-cat" categories={options} value={field.value} onChange={field.onChange} invalid={!!errors.categoryId} />
+        )} />
       </Field>
       <Field label="Importe habitual" htmlFor="con-amount" optional hint="Se sugiere automáticamente al registrar un movimiento." error={errors.baseAmount?.message}>
         <Controller control={control} name="baseAmount" render={({ field }) => <AmountInput id="con-amount" value={field.value} onValueChange={field.onChange} />} />

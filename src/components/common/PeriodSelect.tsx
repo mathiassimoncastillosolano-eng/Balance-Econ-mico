@@ -1,5 +1,5 @@
 import { CalendarRange } from 'lucide-react'
-import { Select } from '@/components/ui/Field'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { Segmented } from '@/components/ui/Segmented'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useUiStore } from '@/stores/uiStore'
@@ -13,12 +13,11 @@ export function PeriodSelect() {
   const isMobile = useIsMobile()
   if (isMobile) {
     return (
-      <div className="relative w-full">
-        <CalendarRange aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-ink-3" />
-        <Select aria-label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value as PeriodKey)} className="pl-10">
-          {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </Select>
-      </div>
+      <SelectMenu<PeriodKey>
+        aria-label="Periodo" className="w-full" value={period} onChange={setPeriod}
+        leading={<CalendarRange aria-hidden className="h-4 w-4 shrink-0 text-ink-3" />}
+        options={PERIODS.map((p) => ({ value: p.key, label: p.label }))}
+      />
     )
   }
   return (

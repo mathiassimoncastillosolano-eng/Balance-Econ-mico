@@ -1,17 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 import { Logo } from '@/components/brand/Logo'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useBudgetAlerts } from '@/hooks/useBudgetAlerts'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
-import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUiStore } from '@/stores/uiStore'
 import { cn } from '@/utils/cn'
-import { initials } from '@/utils/format'
-import { notify } from '@/utils/notify'
-import { NAV_GROUPS, SETTINGS_ITEM, type NavItem } from './navConfig'
+import { NAV_GROUPS, type NavItem } from './navConfig'
 
 export const SIDEBAR_EXPANDED = 272
 export const SIDEBAR_COLLAPSED = 84
@@ -54,17 +51,8 @@ function NavRow({ item, collapsed, badge, onNavigate }: { item: NavItem; collaps
 }
 
 function SidebarBody({ collapsed, onNavigate, showCollapse }: { collapsed: boolean; onNavigate: () => void; showCollapse: boolean }) {
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
   const update = useSettingsStore((s) => s.update)
-  const navigate = useNavigate()
   const { alerts } = useBudgetAlerts()
-
-  async function handleLogout(): Promise<void> {
-    await logout()
-    notify.info('Sesión cerrada', 'Hasta pronto.')
-    navigate('/login', { replace: true })
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -89,28 +77,9 @@ function SidebarBody({ collapsed, onNavigate, showCollapse }: { collapsed: boole
         ))}
       </nav>
 
-      <div className="shrink-0 space-y-1 border-t border-white/10 p-3">
-        <NavRow item={SETTINGS_ITEM} collapsed={collapsed} onNavigate={onNavigate} />
-        <div className={cn('flex items-center rounded-xl bg-white/[0.05] p-2', collapsed ? 'flex-col gap-2' : 'gap-3')}>
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#2F6BFF] to-[#7DB4FF] text-[13px] font-bold text-white">
-            {initials(user?.name ?? '?')}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-white">{user?.name}</p>
-              <p className="truncate text-[11.5px] text-white/50">{user?.email}</p>
-            </div>
-          )}
-          <Tooltip content="Cerrar sesión" side="right" disabled={!collapsed}>
-            <button
-              onClick={() => void handleLogout()} aria-label="Cerrar sesión"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <LogOut className="h-[17px] w-[17px]" />
-            </button>
-          </Tooltip>
-        </div>
-        {showCollapse && (
+      {/* El perfil, Configuración y Cerrar sesión viven en el menú de usuario del encabezado. */}
+      {showCollapse && (
+        <div className="shrink-0 border-t border-white/10 p-3">
           <Tooltip content={collapsed ? 'Expandir menú' : 'Contraer menú'} side="right" disabled={!collapsed}>
             <button
               onClick={() => update({ sidebarCollapsed: !collapsed })}
@@ -121,8 +90,8 @@ function SidebarBody({ collapsed, onNavigate, showCollapse }: { collapsed: boole
               {!collapsed && 'Contraer menú'}
             </button>
           </Tooltip>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,27 +1,34 @@
-import { addDays, endOfMonth, startOfMonth, startOfYear, subMonths } from 'date-fns'
 import {
   ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, Download, Eye, History, Pencil, Plus, Search, SlidersHorizontal, Trash2, X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Amount } from '@/components/common/Amount'
 import { CategoryIcon } from '@/components/common/CategoryIcon'
+import { CategorySelect } from '@/components/common/CategorySelect'
+import { DateShortcutSelect } from '@/components/common/DateShortcutSelect'
 import { EmptyState } from '@/components/common/EmptyState'
 import { PageHeader } from '@/components/common/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { Field, Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Segmented } from '@/components/ui/Segmented'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { useMoney } from '@/hooks/useMoney'
+import { useCurrencySymbol, useMoney } from '@/hooks/useMoney'
 import { useTransactions } from '@/hooks/useFinance'
 import { useUiStore } from '@/stores/uiStore'
 import type { MovementType, ResolvedTransaction } from '@/types/domain'
 import { cn } from '@/utils/cn'
-import { downloadCSV } from '@/utils/csv'
-import { toISO, todayISO } from '@/utils/dates'
+import { todayISO } from '@/utils/dates'
+import { applyFrom, applyTo } from '@/utils/datePresets'
+import { buildExportDataset } from '@/utils/export/dataset'
+import type { ExportDataset } from '@/utils/export/types'
 import { computeTotals } from '@/utils/finance'
+import { formatNumericDate } from '@/utils/calendar'
 import { formatShortDate, pluralize } from '@/utils/format'
+import { ExportModal } from './ExportModal'
 import { movementStatus } from './MovementDetailModal'
 import { useMovementActions } from './useMovementActions'
 
@@ -40,26 +47,39 @@ interface Filters {
 const INITIAL: Filters = { q: '', type: 'ALL', categoryId: '', from: '', to: '', view: 'active', sortKey: 'date', sortDir: 'desc' }
 const PAGE_SIZE = 12
 
-type Preset = 'all' | 'month' | 'prev' | '90' | 'year'
-function presetRange(p: Preset): { from: string; to: string } {
-  const now = new Date()
-  switch (p) {
-    case 'month': return { from: toISO(startOfMonth(now)), to: toISO(now) }
-    case 'prev': { const m = subMonths(now, 1); return { from: toISO(startOfMonth(m)), to: toISO(endOfMonth(m)) } }
-    case '90': return { from: toISO(addDays(now, -89)), to: toISO(now) }
-    case 'year': return { from: toISO(startOfYear(now)), to: toISO(now) }
-    default: return { from: '', to: '' }
-  }
-}
+interface CategoryOption { id: string; name: string; color: string; icon: string; type: MovementType }
+
+const SORT_OPTIONS = [
+  { value: 'date:desc', label: 'Fecha: más reciente' },
+  { value: 'date:asc', label: 'Fecha: más antigua' },
+  { value: 'amount:desc', label: 'Importe: mayor a menor' },
+  { value: 'amount:asc', label: 'Importe: menor a mayor' },
+  { value: 'concept:asc', label: 'Concepto: A–Z' },
+]
 
 function FilterFields({ filters, set, categories, showSort }: {
   filters: Filters
   set: (patch: Partial<Filters>) => void
-  categories: { id: string; name: string }[]
+  categories: CategoryOption[]
   showSort: boolean
 }) {
+  const today = todayISO()
+  const [fromOpen, setFromOpen] = useState(false)
+  const [toOpen, setToOpen] = useState(false)
+  /** «Personalizado» abre Desde y, al elegirlo, encadena Hasta. */
+  const customFlow = useRef(false)
+  const range = { from: filters.from, to: filters.to }
+
+  function changeFrom(from: string): void {
+    const { range: next, resetTo } = applyFrom(range, from)
+    set(next)
+    // Rango invertido → «Hasta» se restablece y se pide uno nuevo; en el flujo personalizado se encadena.
+    if (from && !next.to && (resetTo || customFlow.current)) setToOpen(true)
+    customFlow.current = false
+  }
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))]">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <Field label="Tipo" className="sm:col-span-2 lg:col-span-1">
         <Segmented
           ariaLabel="Tipo" fullWidth size="sm" value={filters.type} onChange={(type) => set({ type })}
@@ -67,35 +87,30 @@ function FilterFields({ filters, set, categories, showSort }: {
         />
       </Field>
       <Field label="Categoría" htmlFor="f-cat">
-        <Select id="f-cat" value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
-          <option value="">Todas</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
+        <CategorySelect id="f-cat" categories={categories} value={filters.categoryId} onChange={(categoryId) => set({ categoryId })} allLabel="Todas" showType />
       </Field>
       <Field label="Atajo de fechas" htmlFor="f-preset">
-        <Select id="f-preset" value="" onChange={(e) => { if (e.target.value) set(presetRange(e.target.value as Preset)) }}>
-          <option value="">Elegir…</option>
-          <option value="all">Todo el historial</option>
-          <option value="month">Este mes</option>
-          <option value="prev">Mes anterior</option>
-          <option value="90">Últimos 90 días</option>
-          <option value="year">Este año</option>
-        </Select>
+        <DateShortcutSelect id="f-preset" range={range} onApply={(r) => set(r)} onCustom={() => { customFlow.current = true; setFromOpen(true) }} />
       </Field>
-      <Field label="Desde" htmlFor="f-from"><Input id="f-from" type="date" max={filters.to || todayISO()} value={filters.from} onChange={(e) => set({ from: e.target.value })} /></Field>
-      <Field label="Hasta" htmlFor="f-to"><Input id="f-to" type="date" min={filters.from} max={todayISO()} value={filters.to} onChange={(e) => set({ to: e.target.value })} /></Field>
+      <Field label="Desde" htmlFor="f-from">
+        <DatePicker
+          id="f-from" label="Desde" placeholder="Sin límite" clearable max={today} value={filters.from} onChange={changeFrom}
+          rangeFrom={filters.from} rangeTo={filters.to} open={fromOpen} onOpenChange={setFromOpen}
+        />
+      </Field>
+      <Field label="Hasta" htmlFor="f-to">
+        <DatePicker
+          id="f-to" label="Hasta" placeholder="Sin límite" clearable min={filters.from || undefined} max={today} value={filters.to}
+          onChange={(to) => set(applyTo(range, to))} defaultFocus={filters.from || undefined}
+          rangeFrom={filters.from} rangeTo={filters.to} open={toOpen} onOpenChange={setToOpen} align="end"
+        />
+      </Field>
       {showSort && (
         <Field label="Ordenar por" htmlFor="f-sort" className="sm:col-span-2">
-          <Select
-            id="f-sort" value={`${filters.sortKey}:${filters.sortDir}`}
-            onChange={(e) => { const [k, d] = e.target.value.split(':'); set({ sortKey: k as SortKey, sortDir: d as 'asc' | 'desc' }) }}
-          >
-            <option value="date:desc">Fecha: más reciente</option>
-            <option value="date:asc">Fecha: más antigua</option>
-            <option value="amount:desc">Importe: mayor a menor</option>
-            <option value="amount:asc">Importe: menor a mayor</option>
-            <option value="concept:asc">Concepto: A–Z</option>
-          </Select>
+          <SelectMenu
+            id="f-sort" value={`${filters.sortKey}:${filters.sortDir}`} options={SORT_OPTIONS}
+            onChange={(v) => { const [k, d] = v.split(':'); set({ sortKey: k as SortKey, sortDir: d as 'asc' | 'desc' }) }}
+          />
         </Field>
       )}
     </div>
@@ -122,13 +137,15 @@ export default function HistoryPage() {
   const [filters, setFilters] = useState<Filters>(INITIAL)
   const [page, setPage] = useState(1)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const currencySymbol = useCurrencySymbol()
 
   const set = (patch: Partial<Filters>): void => { setFilters((f) => ({ ...f, ...patch })); setPage(1) }
   const onSort = (k: SortKey): void => set({ sortKey: k, sortDir: filters.sortKey === k && filters.sortDir === 'desc' ? 'asc' : 'desc' })
 
   const source = filters.view === 'active' ? active : withDeleted.filter((t) => t.deletedAt)
   const categories = useMemo(
-    () => data.categories.filter((c) => !c.deletedAt).map((c) => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)),
+    () => data.categories.filter((c) => !c.deletedAt).map((c): CategoryOption => ({ id: c.id, name: c.name, color: c.color, icon: c.icon, type: c.type })).sort((a, b) => a.name.localeCompare(b.name)),
     [data.categories],
   )
 
@@ -156,12 +173,22 @@ export default function HistoryPage() {
   const rows = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
   const activeFilters = [filters.type !== 'ALL', !!filters.categoryId, !!filters.from, !!filters.to].filter(Boolean).length
 
-  function exportCsv(): void {
-    downloadCSV(`moniq-movimientos-${todayISO()}.csv`, [
-      ['Fecha', 'Tipo', 'Categoría', 'Concepto', 'Nota', 'Importe', 'Estado'],
-      ...filtered.map((t) => [t.date, t.type === 'INGRESO' ? 'Ingreso' : 'Egreso', t.category.name, t.concept.name, t.note, t.amount.toFixed(2), movementStatus(t).label]),
-    ])
+  /** Dataset del conjunto COMPLETO filtrado (no solo la página visible), con totales calculados de esas mismas filas. */
+  function buildDataset(): ExportDataset {
+    return buildExportDataset({
+      transactions: filtered, view: filters.view, q: filters.q, type: filters.type,
+      categoryName: categories.find((c) => c.id === filters.categoryId)?.name,
+      from: filters.from, to: filters.to, statusLabel: (t) => movementStatus(t).label,
+      currencySymbol, formatMoney: (v, o) => money(v, { compact: false, signed: o?.signed }),
+    })
   }
+  const filterChips = [
+    filters.view === 'deleted' ? 'Eliminados' : 'Activos',
+    ...(filters.type !== 'ALL' ? [filters.type === 'INGRESO' ? 'Ingresos' : 'Egresos'] : []),
+    ...(filters.categoryId ? [categories.find((c) => c.id === filters.categoryId)?.name ?? 'Categoría'] : []),
+    ...(filters.from || filters.to ? [filters.from && filters.to ? `${formatNumericDate(filters.from)} – ${formatNumericDate(filters.to)}` : filters.from ? `Desde ${formatNumericDate(filters.from)}` : `Hasta ${formatNumericDate(filters.to)}`] : []),
+    ...(filters.q.trim() ? [`«${filters.q.trim()}»`] : []),
+  ]
 
   const rowActions = (t: ResolvedTransaction) => (
     <div className="flex items-center justify-end gap-0.5">
@@ -184,7 +211,7 @@ export default function HistoryPage() {
         description="Cada operación registrada, con búsqueda, filtros y la posibilidad de editar, eliminar o restaurar."
         actions={
           <>
-            <Button variant="secondary" onClick={exportCsv} disabled={!filtered.length}><Download className="h-4 w-4" /> Exportar CSV</Button>
+            <Button variant="secondary" onClick={() => setExportOpen(true)} disabled={!filtered.length}><Download className="h-4 w-4" /> Exportar</Button>
             <Button variant="primary" onClick={() => openCreate()} className="sm:hidden"><Plus className="h-4 w-4" /> Nuevo</Button>
           </>
         }
@@ -306,6 +333,7 @@ export default function HistoryPage() {
       >
         <FilterFields filters={filters} set={set} categories={categories} showSort />
       </Modal>
+      <ExportModal open={exportOpen} onOpenChange={setExportOpen} count={filtered.length} filterChips={filterChips} buildDataset={buildDataset} />
       {actions.element}
     </div>
   )

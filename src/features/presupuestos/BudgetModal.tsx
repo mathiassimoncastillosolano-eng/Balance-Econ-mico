@@ -4,7 +4,8 @@ import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { AmountInput } from '@/components/common/AmountInput'
 import { Button } from '@/components/ui/Button'
-import { Field, Select } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
+import { CategorySelect } from '@/components/common/CategorySelect'
 import { Modal } from '@/components/ui/Modal'
 import { useMoney } from '@/hooks/useMoney'
 import { ServiceError } from '@/services'
@@ -35,7 +36,7 @@ function BudgetForm({ budget, categories, presetCategoryId, presetLimit, average
   const money = useMoney()
   const createBudget = useDataStore((s) => s.createBudget)
   const updateBudget = useDataStore((s) => s.updateBudget)
-  const { control, register, handleSubmit, setError, setValue, watch, formState: { errors } } = useForm<Values>({
+  const { control, handleSubmit, setError, setValue, watch, formState: { errors } } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: { categoryId: budget?.categoryId ?? presetCategoryId ?? categories[0]?.id ?? '', limit: budget ? String(budget.limit) : presetLimit ? String(presetLimit) : '' },
   })
@@ -61,9 +62,9 @@ function BudgetForm({ budget, categories, presetCategoryId, presetLimit, average
   return (
     <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="space-y-5 pt-1" noValidate>
       <Field label="Categoría" htmlFor="bd-cat" error={errors.categoryId?.message}>
-        <Select id="bd-cat" disabled={!!budget} invalid={!!errors.categoryId} {...register('categoryId')}>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
+        <Controller control={control} name="categoryId" render={({ field }) => (
+          <CategorySelect id="bd-cat" categories={categories} value={field.value} onChange={field.onChange} disabled={!!budget} invalid={!!errors.categoryId} />
+        )} />
       </Field>
       <Field label="Límite mensual" htmlFor="bd-limit" error={errors.limit?.message}>
         <Controller control={control} name="limit" render={({ field }) => <AmountInput id="bd-limit" large autoFocus value={field.value} onValueChange={field.onChange} invalid={!!errors.limit} />} />

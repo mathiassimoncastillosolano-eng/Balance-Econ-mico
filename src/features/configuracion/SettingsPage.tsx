@@ -8,7 +8,8 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { PasswordInput } from '@/components/common/PasswordInput'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { Field, Input } from '@/components/ui/Field'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { Switch } from '@/components/ui/Switch'
 import { ServiceError, services } from '@/services'
 import { useAuthStore } from '@/stores/authStore'
@@ -126,14 +127,16 @@ export default function SettingsPage() {
         <Section title="Región y formato" description="La moneda cambia el símbolo y el formato; no convierte tus importes.">
           <div className="grid max-w-xl gap-5 sm:grid-cols-2">
             <Field label="Moneda" htmlFor="st-cur" hint={`Vista previa: ${formatMoney(12450.5, settings.currency)}`}>
-              <Select id="st-cur" value={settings.currency} onChange={(e) => update({ currency: e.target.value as CurrencyCode })}>
-                {Object.entries(CURRENCIES).map(([code, c]) => <option key={code} value={code}>{c.symbol} · {c.label}</option>)}
-              </Select>
+              <SelectMenu<CurrencyCode>
+                id="st-cur" value={settings.currency} onChange={(currency) => update({ currency })}
+                options={(Object.entries(CURRENCIES) as [CurrencyCode, (typeof CURRENCIES)[CurrencyCode]][]).map(([code, c]) => ({ value: code, label: `${c.symbol} · ${c.label}` }))}
+              />
             </Field>
             <Field label="Periodo predeterminado" htmlFor="st-per" hint="Se aplica al abrir la aplicación.">
-              <Select id="st-per" value={settings.defaultPeriod} onChange={(e) => { const p = e.target.value as PeriodKey; update({ defaultPeriod: p }); setPeriod(p) }}>
-                {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-              </Select>
+              <SelectMenu<PeriodKey>
+                id="st-per" value={settings.defaultPeriod} onChange={(p) => { update({ defaultPeriod: p }); setPeriod(p) }}
+                options={PERIODS.map((p) => ({ value: p.key, label: p.label }))}
+              />
             </Field>
           </div>
           <div className="mt-5 max-w-xl space-y-3">

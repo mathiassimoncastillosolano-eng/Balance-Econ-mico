@@ -1,7 +1,7 @@
 import { Archive, ArrowRightLeft, PowerOff } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Field'
+import { CategorySelect } from '@/components/common/CategorySelect'
 import { Modal } from '@/components/ui/Modal'
 import { useDataStore } from '@/stores/dataStore'
 import type { Category } from '@/types/domain'
@@ -84,9 +84,7 @@ export function DeleteCategoryModal({ open, onOpenChange, category, conceptCount
                 <span className="block text-[14px] font-semibold text-ink">{o.title}</span>
                 <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-2">{o.text}</span>
                 {o.value === 'reassign' && strategy === 'reassign' && (
-                  <Select aria-label="Categoría de destino" className="mt-3" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
-                    {targets.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </Select>
+                  <CategorySelect aria-label="Categoría de destino" className="mt-3" categories={targets} value={targetId} onChange={setTargetId} />
                 )}
               </span>
             </label>
